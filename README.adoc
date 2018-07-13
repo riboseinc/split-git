@@ -44,20 +44,20 @@ $ split-git <big-repo-path> [target-subrepo-path]
 
 [source,console]
 ----
-~/big-repo$ ls
+a@b:~/big-repo$ ls
 a/ b/ c/ d/ e/
 
-~/big-repo$ ls */prepare.sh
+a@b:~/big-repo$ ls */prepare.sh
 a/prepare.sh  c/prepare.sh  e/prepare.sh
 b/prepare.sh  d/prepare.sh
 
-~/big-repo$ git branch
+a@b:~/big-repo$ git branch
 * split
 master
 
-~/big-repo$ mkdir /tmp/split-repos
+a@b:~/big-repo$ mkdir /tmp/split-repos
 
-~/big-repo$ COMMON_LINK=clone \
+a@b:~/big-repo$ COMMON_LINK=clone \
     SUB_REPO_PREFIX=myrepo- \
     SUB_REPO_INDICATOR_FILE=prepare.sh \
     BIG_REPO_POST_SPLIT_BRANCH=split \
@@ -66,14 +66,14 @@ master
     split-repo ~/big-repo /tmp/split-repos
 ... ...
 
-~/big-repo$ cd /tmp/split-repos; ls
+a@b:~/big-repo$ cd /tmp/split-repos; ls
 myrepo-a/  myrepo-c/  myrepo-e/
 myrepo-b/  myrepo-d/
 
-/tmp/split-repos$ cd myrepo-a; ls
+a@b:/tmp/split-repos$ cd myrepo-a; ls
 common/
 
-/tmp/split-repos/myrepo-a$ cd common; git branch
+a@b:/tmp/split-repos/myrepo-a$ cd common; git branch
 * split
 split-a
 split-b

@@ -65,20 +65,20 @@ usage() {
 	pecho "\\e[1mUsage:\\e[0m ${__progname} <big-repo-path> [target-subrepo-path]"
 	pecho
 	pecho "\\e[1mScenario:\\e[0m"
-	pecho "  ~/big-repo$ ls"
+	pecho "  a@b:~/big-repo$ ls"
 	pecho "  a/ b/ c/ d/ e/"
 	pecho
-	pecho "  ~/big-repo$ ls */${SUB_REPO_INDICATOR_FILE}"
+	pecho "  a@b:~/big-repo$ ls */${SUB_REPO_INDICATOR_FILE}"
 	pecho "  a/${SUB_REPO_INDICATOR_FILE}  c/${SUB_REPO_INDICATOR_FILE}  e/${SUB_REPO_INDICATOR_FILE}"
 	pecho "  b/${SUB_REPO_INDICATOR_FILE}  d/${SUB_REPO_INDICATOR_FILE}"
 	pecho
-	pecho "  ~/big-repo$ git branch"
+	pecho "  a@b:~/big-repo$ git branch"
 	pecho "  * ${BIG_REPO_POST_SPLIT_BRANCH}"
 	pecho "  master"
 	pecho
-	pecho "  ~/big-repo$ mkdir /tmp/split-repos"
+	pecho "  a@b:~/big-repo$ mkdir /tmp/split-repos"
 	pecho
-	pecho "  ~/big-repo$ COMMON_LINK=clone \\"
+	pecho "  a@b:~/big-repo$ COMMON_LINK=clone \\"
 	pecho "      SUB_REPO_PREFIX=${SUB_REPO_PREFIX} \\"
 	pecho "      SUB_REPO_INDICATOR_FILE=${SUB_REPO_INDICATOR_FILE} \\"
 	pecho "      BIG_REPO_POST_SPLIT_BRANCH=${BIG_REPO_POST_SPLIT_BRANCH} \\"
@@ -87,14 +87,14 @@ usage() {
 	pecho "      \\e[1m${__progname}\\e[0m ~/big-repo /tmp/split-repos"
 	pecho "  ... ..."
 	pecho
-	pecho "  ~/big-repo$ cd /tmp/split-repos; ls"
+	pecho "  a@b:~/big-repo$ cd /tmp/split-repos; ls"
 	pecho "  ${SUB_REPO_PREFIX}a/  ${SUB_REPO_PREFIX}c/  ${SUB_REPO_PREFIX}e/"
 	pecho "  ${SUB_REPO_PREFIX}b/  ${SUB_REPO_PREFIX}d/"
 	pecho
-	pecho "  /tmp/split-repos$ cd ${SUB_REPO_PREFIX}a; ls"
+	pecho "  a@b:/tmp/split-repos$ cd ${SUB_REPO_PREFIX}a; ls"
 	pecho "  ${BIG_REPO_REF_IN_SUB_REPO}/"
 	pecho
-	pecho "  /tmp/split-repos/${SUB_REPO_PREFIX}a$ cd ${BIG_REPO_REF_IN_SUB_REPO}; git branch"
+	pecho "  a@b:/tmp/split-repos/${SUB_REPO_PREFIX}a$ cd ${BIG_REPO_REF_IN_SUB_REPO}; git branch"
 	pecho "  * ${BIG_REPO_POST_SPLIT_BRANCH}"
 	pecho "  ${BIG_REPO_SPLIT_BRANCH_PREFIX}a"
 	pecho "  ${BIG_REPO_SPLIT_BRANCH_PREFIX}b"
