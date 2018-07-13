@@ -1,0 +1,124 @@
+= split-git
+
+== Introduction
+
+Split up the given big repo into individual package-related repos.
+
+=== Goals
+
+- Keep the common code in a submodule in those repos (e.g., as `common/`).
+- Try to keep the related git history intact (using `git subtree split`).
+- The split-up repos are to be in the same path level as the parent one, unless 
+  a second argument is provided (see `usage()`).
+
+Original motivation is to split up the monolithic rpm-specs repo into individual 
+package-related repos.
+
+This script uses The Easy Way(tm):
+https://stackoverflow.com/questions/359424/detach-move-subdirectory-into-separate-git-repository/17864475#17864475
+
+== Prerequisites
+
+Requires Git 1.7.11+ (i.e. the `git subtree` command).
+
+== Installation
+
+Copy `bin/split-git` into one of the paths in `$PATH`:
+
+[source,console]
+----
+$ git clone https://github.com/riboseinc/split-git
+$ export PATH="${PWD}/split-git/bin:${PATH}"
+$ split-git
+Usage: split-git ...
+----
+
+== Usage
+
+[source,console]
+----
+$ split-git <big-repo-path> [target-subrepo-path]
+----
+
+=== Scenario
+
+[source,console]
+----
+~/big-repo$ ls
+a/ b/ c/ d/ e/
+
+~/big-repo$ ls */prepare.sh
+a/prepare.sh  c/prepare.sh  e/prepare.sh
+b/prepare.sh  d/prepare.sh
+
+~/big-repo$ git branch
+* split
+master
+
+~/big-repo$ mkdir /tmp/split-repos
+
+~/big-repo$ COMMON_LINK=clone \
+    SUB_REPO_PREFIX=myrepo- \
+    SUB_REPO_INDICATOR_FILE=prepare.sh \
+    BIG_REPO_POST_SPLIT_BRANCH=split \
+    BIG_REPO_REF_IN_SUB_REPO=common \
+    BIG_REPO_SPLIT_BRANCH_PREFIX=split- \
+    split-repo ~/big-repo /tmp/split-repos
+... ...
+
+~/big-repo$ cd /tmp/split-repos; ls
+myrepo-a/  myrepo-c/  myrepo-e/
+myrepo-b/  myrepo-d/
+
+/tmp/split-repos$ cd myrepo-a; ls
+common/
+
+/tmp/split-repos/myrepo-a$ cd common; git branch
+* split
+split-a
+split-b
+split-c
+split-d
+split-e
+master
+----
+
+=== Parameters
+
+COMMON_LINK::
+- enums: `clone`|`sym`|`sub`
+- The method { `sub` | `sym` | `clone` } to use when linking from sub-repo to 
+  the big-repo
+
+SUB_REPO_PREFIX::
+- `myrepo-`
+- The prefix prepended to ${package_name}, as the sub-repo name
+
+SUB_REPO_INDICATOR_FILE::
+- `prepare.sh`
+- The file within a subfolder in big-repo that indicates fit for splitting
+
+BIG_REPO_POST_SPLIT_BRANCH::
+- `split`
+- The branch in big repo crafted for post-split operations
+
+BIG_REPO_REF_IN_SUB_REPO::
+- `common`
+- The path within each sub-repo that references the big repo
+
+BIG_REPO_SPLIT_BRANCH_PREFIX::
+- `split-`
+- The branch name prefix for each sub-repo-branch created in big repo
+
+== Contributing
+
+Bug reports and pull requests are welcome on GitHub at
+https://github.com/riboseinc/split-git. This project is intended to be a
+safe, welcoming space for collaboration, and contributors are expected to
+adhere to the http://contributor-covenant.org[Contributor Covenant] code of
+conduct.
+
+== License
+
+The software is available as open source under the terms of the
+http://opensource.org/licenses/MIT[MIT License].

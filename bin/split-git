@@ -1,0 +1,288 @@
+#!/bin/bash
+#
+# (c) Ribose Inc.
+#
+# == Introduction
+#
+# Split up the given big repo into individual package-related repos.
+#
+# Keep the common code in a submodule in those repos (as common/).
+# Try to keep the related git history intact (using `git subtree split`).
+# The split-up repos are to be in the same path level as the parent one, unless 
+# a second argument is provided (see usage()).
+#
+# Original motivation is to split up the rpm-specs repo into individual 
+# package-related repos.
+#
+# This script uses The Easy Way(tm):
+# https://stackoverflow.com/questions/359424/detach-move-subdirectory-into-separate-git-repository/17864475#17864475
+#
+# Requires Git 1.7.11+ (i.e. the `git subtree` command)
+#
+# ###########################################################################
+# Environmental Parameters
+#
+
+# The prefix prepended to ${package_name}, as the sub-repo name
+SUB_REPO_PREFIX=${SUB_REPO_PREFIX:-myrepo-}
+
+# The file within a subfolder in big-repo that indicates fit for splitting
+SUB_REPO_INDICATOR_FILE=${SUB_REPO_INDICATOR_FILE:-prepare.sh}
+
+# The branch in big repo crafted for post-split operations
+BIG_REPO_POST_SPLIT_BRANCH=${BIG_REPO_POST_SPLIT_BRANCH:-split}
+
+# The path within each sub-repo that references the big repo
+BIG_REPO_REF_IN_SUB_REPO=${BIG_REPO_REF_IN_SUB_REPO:-common}
+
+# The branch name prefix for each sub-repo-branch created in big repo
+BIG_REPO_SPLIT_BRANCH_PREFIX=${BIG_REPO_SPLIT_BRANCH_PREFIX:-split-}
+
+# The method { sub | sym | clone } to use when linking from sub-repo to the 
+# big-repo
+COMMON_LINK=${COMMON_LINK:-sub}
+# COMMON_LINK=${COMMON_LINK:-sym}
+
+# ###########################################################################
+# Main program
+#
+set -e
+
+readonly __progname="$(basename "$0")"
+
+pecho() {
+	# shellcheck disable=2059
+	printf "$* \\n"
+}
+
+usage() {
+	local SUB_REPO_PREFIX="\\e[1;35mmyrepo-\\e[0m"
+	local SUB_REPO_INDICATOR_FILE="\\e[1;34mprepare.sh\\e[0m"
+	local BIG_REPO_POST_SPLIT_BRANCH="\\e[1;31msplit\\e[0m"
+	local BIG_REPO_REF_IN_SUB_REPO="\\e[1;32mcommon\\e[0m"
+	local BIG_REPO_SPLIT_BRANCH_PREFIX="\\e[1;33msplit-\\e[0m"
+
+	pecho "\\e[1mUsage:\\e[0m ${__progname} <big-repo-path> [target-subrepo-path]"
+	pecho
+	pecho "\\e[1mScenario:\\e[0m"
+	pecho "  ~/big-repo$ ls"
+	pecho "  a/ b/ c/ d/ e/"
+	pecho
+	pecho "  ~/big-repo$ ls */${SUB_REPO_INDICATOR_FILE}"
+	pecho "  a/${SUB_REPO_INDICATOR_FILE}  c/${SUB_REPO_INDICATOR_FILE}  e/${SUB_REPO_INDICATOR_FILE}"
+	pecho "  b/${SUB_REPO_INDICATOR_FILE}  d/${SUB_REPO_INDICATOR_FILE}"
+	pecho
+	pecho "  ~/big-repo$ git branch"
+	pecho "  * ${BIG_REPO_POST_SPLIT_BRANCH}"
+	pecho "  master"
+	pecho
+	pecho "  ~/big-repo$ mkdir /tmp/split-repos"
+	pecho
+	pecho "  ~/big-repo$ COMMON_LINK=clone \\"
+	pecho "      SUB_REPO_PREFIX=${SUB_REPO_PREFIX} \\"
+	pecho "      SUB_REPO_INDICATOR_FILE=${SUB_REPO_INDICATOR_FILE} \\"
+	pecho "      BIG_REPO_POST_SPLIT_BRANCH=${BIG_REPO_POST_SPLIT_BRANCH} \\"
+	pecho "      BIG_REPO_REF_IN_SUB_REPO=${BIG_REPO_REF_IN_SUB_REPO} \\"
+	pecho "      BIG_REPO_SPLIT_BRANCH_PREFIX=${BIG_REPO_SPLIT_BRANCH_PREFIX} \\"
+	pecho "      \\e[1m${__progname}\\e[0m ~/big-repo /tmp/split-repos"
+	pecho "  ... ..."
+	pecho
+	pecho "  ~/big-repo$ cd /tmp/split-repos; ls"
+	pecho "  ${SUB_REPO_PREFIX}a/  ${SUB_REPO_PREFIX}c/  ${SUB_REPO_PREFIX}e/"
+	pecho "  ${SUB_REPO_PREFIX}b/  ${SUB_REPO_PREFIX}d/"
+	pecho
+	pecho "  /tmp/split-repos$ cd ${SUB_REPO_PREFIX}a; ls"
+	pecho "  ${BIG_REPO_REF_IN_SUB_REPO}/"
+	pecho
+	pecho "  /tmp/split-repos/${SUB_REPO_PREFIX}a$ cd ${BIG_REPO_REF_IN_SUB_REPO}; git branch"
+	pecho "  * ${BIG_REPO_POST_SPLIT_BRANCH}"
+	pecho "  ${BIG_REPO_SPLIT_BRANCH_PREFIX}a"
+	pecho "  ${BIG_REPO_SPLIT_BRANCH_PREFIX}b"
+	pecho "  ${BIG_REPO_SPLIT_BRANCH_PREFIX}c"
+	pecho "  ${BIG_REPO_SPLIT_BRANCH_PREFIX}d"
+	pecho "  ${BIG_REPO_SPLIT_BRANCH_PREFIX}e"
+	pecho "  master"
+	pecho
+	pecho "\\e[1mParameters:\\e[0m"
+	pecho
+	pecho "       COMMON_LINK                     - clone|sym|sub"
+	pecho "                                       \` The method { sub | sym | clone } to use when linking from sub-repo to the big-repo"
+	pecho "       SUB_REPO_PREFIX                 - myrepo-"
+	pecho "                                       \` The prefix prepended to \${package_name}, as the sub-repo name"
+	pecho "       SUB_REPO_INDICATOR_FILE         - prepare.sh"
+	pecho "                                       \` The file within a subfolder in big-repo that indicates fit for splitting"
+	pecho "       BIG_REPO_POST_SPLIT_BRANCH      - split"
+	pecho "                                       \` The branch in big repo crafted for post-split operations"
+	pecho "       BIG_REPO_REF_IN_SUB_REPO        - common"
+	pecho "                                       \` The path within each sub-repo that references the big repo"
+	pecho "       BIG_REPO_SPLIT_BRANCH_PREFIX    - split-"
+	pecho "                                       \` The branch name prefix for each sub-repo-branch created in big repo"
+}
+
+errx() {
+	# shellcheck disable=2059
+	printf "\\e[1;31m${__progname}\\e[0m: $*\\n" >&2
+	exit 1
+}
+
+info() {
+	# shellcheck disable=2059
+	printf "\\e[1;34m${__progname}\\e[0m: $*\\n"
+}
+
+check_usage() {
+	if [[ $# -lt 1 ]]
+	then
+		usage >&2
+		exit 1
+	fi
+
+	local big_repo_path="${1?}"
+	if [[ ! -d "${big_repo_path}" ]]
+	then
+		errx "${big_repo_path} is not a directory"
+	fi
+
+	if [[ $# -ge 2 ]]
+	then
+		local sub_repo_path="${2}"
+		if [[ ! -d "${sub_repo_path}" ]]
+		then
+			errx "${sub_repo_path} is not a directory"
+		fi
+	fi
+}
+
+# Bail if cannot `pushd` into the given path
+baild() {
+	local path="${1?}"
+	info "Pushing into ${path}..."
+	pushd "${path}" || errx "Cannot cd into ${path}"
+}
+
+main() {
+	check_usage "$@"
+
+	local big_repo_path="${1?}"
+	big_repo_path="${big_repo_path%/}"
+
+	local sub_repo_path
+	if [[ $# -ge 2 ]]
+	then
+		sub_repo_path="${2}"
+	else
+		sub_repo_path="${big_repo_path%/*}"
+	fi
+
+	info "Going to split up repos in ${big_repo_path} at ${sub_repo_path}"
+
+	baild "${big_repo_path}"
+	local big_origin
+	big_origin=$(git remote get-url origin)
+	popd || errx "Cannot popd"
+
+	info "big_repo_path=${big_repo_path}"
+	info "big_repo_remote_origin=${big_origin}"
+
+	for preps in "${big_repo_path}"/*/"${SUB_REPO_INDICATOR_FILE}" # {{{
+	do
+		local package_name="${preps%/*}"
+		package_name="${package_name##*/}"
+		local sub_repo_path_in_big_dir="${package_name}"
+		local sub_repo_name="${SUB_REPO_PREFIX}${package_name}"
+		info " * Processing ${package_name} :::"
+
+		# Split repo in big repo
+		baild "${big_repo_path}" # {{{
+
+		# Skip if sub-dir is actually untracked
+		if git ls-files --other --directory --exclude-standard | \
+			\grep "^${sub_repo_path_in_big_dir}/*\$"
+		then
+			info "${big_repo_path}/${sub_repo_path_in_big_dir} is not tracked by Git.  Skipping."
+			continue
+		fi
+
+		local split_branch_name="${BIG_REPO_SPLIT_BRANCH_PREFIX}${package_name}"
+
+		# Pull in sub-repo source into sub-repo dir
+		if [[ -r "${sub_repo_path}/${sub_repo_name}/${SUB_REPO_INDICATOR_FILE}" ]]
+		then
+			info "${sub_repo_path}/${sub_repo_name}/${SUB_REPO_INDICATOR_FILE} exists.  Skipping cloning."
+			popd || errx "Cannot popd"
+		else
+			info git subtree split -P "${sub_repo_path_in_big_dir}" -b "${split_branch_name}"
+			git subtree split -P "${sub_repo_path_in_big_dir}" -b "${split_branch_name}" || \
+				errx "git-subtree failed"
+			popd || errx "Cannot popd"
+
+			# Create sub-repo directory
+			baild "${sub_repo_path}"
+			mkdir "${sub_repo_name}" || info "Cannot mkdir ${sub_repo_name}"
+			baild "${sub_repo_name}"
+
+			git init
+			git pull "${big_repo_path}" "${split_branch_name}"
+			popd || errx "Cannot popd"
+			popd || errx "Cannot popd"
+		fi
+		# }}}
+
+		# Add big repo as a submodule in common/
+		# Skip if common/ already exists
+		baild "${sub_repo_path}/${sub_repo_name}" # {{{
+		if [[ -d "${sub_repo_path}/${sub_repo_name}/${BIG_REPO_REF_IN_SUB_REPO}" ]]
+		then
+			info "${sub_repo_path}/${sub_repo_name}/${BIG_REPO_REF_IN_SUB_REPO} exists.  Skipping git-submodule-add."
+		else
+			git submodule add "${big_origin}" "${BIG_REPO_REF_IN_SUB_REPO}"
+			case "${COMMON_LINK}" in
+				clone)
+					# Clone local copy to get local 
+					# branches, and replace the 
+					# submodule-cloned copy.
+					rm -rf "${BIG_REPO_REF_IN_SUB_REPO}"
+					info "A clone replaced the submodule."
+					git clone "${big_repo_path}" "${BIG_REPO_REF_IN_SUB_REPO}"
+					;;
+				sym)
+					# Replace the submodule-cloned copy 
+					# with a symlink
+					rm -rf "${BIG_REPO_REF_IN_SUB_REPO}"
+					info "A symlink is created instead."
+					ln -s "${big_repo_path}" "${BIG_REPO_REF_IN_SUB_REPO}"
+					;;
+				sub|*)
+					;;
+			esac
+		fi
+
+		# Make sure the correct version is checked out.
+		# Since the "submodule" is now actually a clone of the local 
+		# copy, all local (unpushed) branches are available.
+		baild "${sub_repo_path}/${sub_repo_name}/${BIG_REPO_REF_IN_SUB_REPO}"
+		git checkout "${BIG_REPO_POST_SPLIT_BRANCH}"
+		popd || errx "Cannot popd"
+
+		popd || errx "Cannot popd" # }}}
+
+		# Add remote 'origin' for each sub-repo if not exists
+		baild "${sub_repo_path}/${sub_repo_name}" # {{{
+		local split_origin
+		split_origin=${big_origin%/*}
+		split_origin=${split_origin}/${sub_repo_name}
+		git remote get-url origin || \
+			git remote add origin "${split_origin}"
+		info "TODO: pushd ${sub_repo_path}/${sub_repo_name} && git push origin -u master"
+		popd || errx "Cannot popd" # }}}
+
+		# Clean up big-repo
+		baild "${big_repo_path}" # {{{
+		info TODO: git rm -rf "${sub_repo_path_in_big_dir}"
+		popd || errx "Cannot popd" # }}}
+	done # }}}
+
+	info "All done!"
+}
+
+main "$@"
