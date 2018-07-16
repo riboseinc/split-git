@@ -276,6 +276,14 @@ main() {
 		info "TODO: pushd ${sub_repo_path}/${sub_repo_name} && git push origin -u master"
 		popd || errx "Cannot popd" # }}}
 
+		# Copy whatever dotfiles are present in the big repo to the 
+		# sub-repo:
+		# Copy all dot files except for '.git/'
+		find "${big_repo_path}" -name '.?*' -and -not -name '.git' -exec cp -af {} "${sub_repo_path}/${sub_repo_name}"/ \;
+		baild "${sub_repo_path}/${sub_repo_name}" # {{{
+		git add . && git commit -m"${__progname}: Adding dotfiles from ${big_repo_path##*/}"
+		popd || errx "Cannot popd" # }}}
+
 		# Clean up big-repo
 		baild "${big_repo_path}" # {{{
 		info TODO: git rm -rf "${sub_repo_path_in_big_dir}"
