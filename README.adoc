@@ -87,27 +87,28 @@ master
 
 COMMON_LINK::
 - enums: `clone`|`sym`|`sub`
+- default: `sub`
 - The method { `sub` | `sym` | `clone` } to use when linking from sub-repo to 
   the big-repo
 
 SUB_REPO_PREFIX::
-- `myrepo-`
+- default: `myrepo-`
 - The prefix prepended to ${package_name}, as the sub-repo name
 
 SUB_REPO_INDICATOR_FILE::
-- `prepare.sh`
+- default: `prepare.sh`
 - The file within a subfolder in big-repo that indicates fit for splitting
 
 BIG_REPO_POST_SPLIT_BRANCH::
-- `split`
+- default: `split`
 - The branch in big repo crafted for post-split operations
 
 BIG_REPO_REF_IN_SUB_REPO::
-- `common`
+- default: `common`
 - The path within each sub-repo that references the big repo
 
 BIG_REPO_SPLIT_BRANCH_PREFIX::
-- `split-`
+- default: `split-`
 - The branch name prefix for each sub-repo-branch created in big repo
 
 == Contributing
